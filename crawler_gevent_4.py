@@ -20,7 +20,7 @@ def crawler():
 
     while 1:
         try:
-            u = queue.get(timeout=1)
+            u = queue.get(timeout=0)
             response = requests.get(u)
             print response.status_code, u
 
@@ -35,9 +35,12 @@ def crawler():
 
 # Read the seed url from stdin
 queue.put(sys.argv[1])
+pool.spawn(crawler)
 
-for x in xrange(0, 5):
-    pool.spawn(crawler)
+while not queue.empty() and not pool.free_count() == 5:
+    gevent.sleep(0.1)
+    for x in xrange(0, min(queue.qsize(), pool.free_count())):
+        pool.spawn(crawler)
 
 # Wait for everything to complete
 pool.join()
