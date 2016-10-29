@@ -8,12 +8,15 @@ import gevent.queue
 import sys
 import re
 import requests
-from  datetime import datetime
+from lxml import html
+from datetime import datetime
+from urlparse import urlparse
 
 crawled = 0
 startTime = datetime.now()
 pool = gevent.pool.Pool(5)
 queue = gevent.queue.Queue()
+
 
 def crawler():
     global crawled
@@ -24,8 +27,14 @@ def crawler():
             response = requests.get(u)
             print response.status_code, u
 
-            for link in re.findall('<a href="(http.*?)"', response.content):
+            parsed_uri = urlparse(u)
+            domain = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri)
 
+            tree = html.fromstring(response.text)
+            links = tree.xpath('//a/@href')
+            for link in links:
+                if link[0:4] != 'http':
+                    link = domain[:-1] + link
                 if crawled < 10:
                     crawled += 1
                     queue.put(link)
@@ -45,4 +54,4 @@ while not queue.empty() and not pool.free_count() == 5:
 # Wait for everything to complete
 pool.join()
 
-print datetime.now() - startTime # Took 5.943 seconds, varying
+print datetime.now() - startTime  # Took 5.943 seconds, varying
